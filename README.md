@@ -1,6 +1,6 @@
 # libreoffice-wasm-slim
 
-剪枝版 LibreOffice WASM（LOWA）：无头 Writer-only 构建，专为**纯浏览器环境里的 docx → PDF 渲染校验**设计（pdf2doc 高保真转换前端化项目的 Phase 5 环节）。全部构建在 GitHub Actions 公开仓库免费额度内完成。
+剪枝版 LibreOffice WASM（LOWA）：无头 Writer-only 构建，专为**纯浏览器环境里的 docx → PDF 渲染校验**设计（pdf2doc 高保真转换前端化项目的 Phase 5 环节）。从 LibreOffice 源码全量构建，全程跑在 GitHub Actions 公开仓库免费额度内。
 
 ## 组件取舍
 
@@ -29,16 +29,15 @@
 | Calc / Impress / Draw / Math / Base | LOWA 移植本身就是 Writer-only，天然不含 |
 | GUI 依赖（Qt）、scripting、crashdump | 构建旗标 `--disable-gui --disable-scripting --disable-crashdump` |
 
-## 两条构建车道
+## 构建方式
 
-1. **prune-cdn-data（快车道，约 15-25 分钟，先跑这个）**：下载 ZetaOffice CDN 官方二进制 → 自研脚本解包 `soffice.data` → 资源剪枝 → 注入中文字体 → 重打包 → wasm-opt → Brotli → 冒烟测试 → 发布 Release。不编译任何 LibreOffice 代码。
-2. **build-from-source（完整道）**：从 `distro/allotropia/zeta-24-2` 分支全量构建无头 wasm，再执行同一剪枝流水线。额外获得 `-Os` 等链接期优化（约再省 10-20%）。首次运行必然撞时间墙——320 分钟软超时 + ccache 落盘，重新 Run workflow 断点续跑，预期 2-4 轮跑通。
+唯一入口：`.github/workflows/build-from-source.yml`。Actions 页手动 Run workflow，或命令行 `gh workflow run build-from-source.yml`。
 
-两条车道的终点都是把真实 docx 走一遍转换的**冒烟测试**：`scripts/make_fixture.py` 生成覆盖 CJK/加粗/下划线/制表位/填空线/页码域的 fixture.docx，puppeteer 驱动剪枝后的 wasm 实转并断言 PDF 魔数与体积。剪枝剪过头（例如误删过滤器或注册表）会在这里当场现形。
+流程：浅克隆 `distro/allotropia/zeta-24-2` 分支（ZetaOffice CDN 二进制的源码配方）→ 无头配置全量构建 → 产物执行剪枝流水线（解包 `soffice.data` → 白名单剪枝 → 注入 GB2312 子集化中文字体 → 重打包 → wasm-opt → Brotli）→ 冒烟测试 → 全绿自动发布 Release。
 
-## 触发方式
+**首次运行必然撞时间墙，这是设计而非 bug**：320 分钟软超时确保 ccache 必定落盘，重新触发即断点续跑，预期 2-4 轮完成首轮全量构建；此后热缓存一轮就够。`gh cache list` 应能看到 `ccache-*` 键，看不到说明缓存保存失效，先修这个再继续。
 
-Actions 页 → 选 workflow → Run workflow。均为手动触发（这不是 per-commit CI，产物一次构建长期使用）。
+冒烟测试是交付门：puppeteer 驱动构建产物把 fixture.docx（覆盖 CJK/加粗/下划线/制表位/填空线/页码域）实转 PDF 并断言魔数与体积。剪枝剪过头（误删过滤器/字体/注册表资源）会在这里当场现形。
 
 ## 产物用法
 
