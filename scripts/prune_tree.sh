@@ -1,0 +1,71 @@
+#!/usr/bin/env bash
+# 对解包后的 soffice.data 目录树（或源码构建的 instdir）做剪枝。
+# 用法: prune_tree.sh <目录>
+#
+# 剪枝原则：只删资源文件，绝不碰 share/registry 主 .xcd（交叉引用会炸启动）。
+# 删完必须过冒烟测试才算数。
+set -euo pipefail
+
+ROOT="${1:?usage: prune_tree.sh <dir>}"
+deleted_bytes=0
+
+purge() {  # purge <路径>：删除并累计体积
+  local p="$1"
+  if [ -e "$p" ]; then
+    local sz
+    sz=$(du -sb "$p" | cut -f1)
+    rm -rf "$p"
+    deleted_bytes=$((deleted_bytes + sz))
+    echo "  - ${p#"$ROOT"/} ($(numfmt --to=iec "$sz"))"
+  fi
+}
+
+echo "== 字体剪枝（保留 Liberation / DejaVu / OpenSymbol） =="
+FONTDIR="$ROOT/share/fonts/truetype"
+if [ -d "$FONTDIR" ]; then
+  # Liberation: Times/Arial/Courier 度量兼容体，宽度测量的基准
+  # DejaVu:     Unicode 兜底
+  # OpenSymbol: Word 项目符号 Symbol 字体的替代，删了 • 会变豆腐块
+  # 注意：opens___.ttf 文件名是三个下划线
+  find "$FONTDIR" -type f \
+    ! -name 'Liberation*' ! -name 'DejaVu*' ! -name 'opens__*' \
+    ! -name 'NotoSerifSC-Subset*' \
+    -print -delete | sed 's/^/  - /'
+fi
+
+echo "== gallery / 模板 / 帮助 =="
+purge "$ROOT/share/gallery"
+purge "$ROOT/share/template/common/internal"
+purge "$ROOT/share/template/wizard"
+purge "$ROOT/help"
+
+echo "== locale 资源（只留 en / zh / CJK） =="
+LOCALEDIR="$ROOT/share/registry/res"
+if [ -d "$LOCALEDIR" ]; then
+  find "$LOCALEDIR" -type f ! -name '*en*' ! -name '*zh*' ! -name '*CJK*' \
+    -print -delete | sed 's/^/  - /'
+fi
+
+echo "== 词典 / 拼写（CJK 不需要，且我们的生成器不启用断词） =="
+purge "$ROOT/share/extensions/dict-en"
+purge "$ROOT/share/extensions/dict-de"
+purge "$ROOT/share/extensions/dict-es"
+purge "$ROOT/share/extensions/dict-fr"
+purge "$ROOT/share/hunspell"
+purge "$ROOT/share/hyphen"
+
+echo "== 其它一次性资源 =="
+purge "$ROOT/share/readmigration"
+purge "$ROOT/share/xslt"          # XSLT 导入导出过滤器（docx 链路用不到）
+purge "$ROOT/share/autocorr"     # 自动更正词表（无头转换不触发）
+purge "$ROOT/share/wordbook"
+purge "$ROOT/share/fingerprint"
+
+# ---- 激进区（默认注释掉：删 UI 配置，GUI 构建可省 ~22MB，但可能误伤 ----------
+# 无头转换实际读取的配置项。只有冒烟测试绿了才允许逐个放开。
+# purge "$ROOT/share/config/images.zip"
+# purge "$ROOT/share/config/soffice.cfg/modules/swriter/toolbar"
+# purge "$ROOT/share/config/soffice.cfg/modules/swriter/menubar"
+# -----------------------------------------------------------------------------
+
+echo "剪枝合计释放: $(numfmt --to=iec $deleted_bytes)"

@@ -1,0 +1,206 @@
+name: build-lowa-from-source
+# 完整道：从 LibreOffice 源码全量构建无头 Writer-only wasm，再走同一套剪枝流水线。
+# 首次运行必然撞时间墙（设计如此）：320 分钟软超时保证 ccache 保存步骤必定执行，
+# 之后重新 Run workflow 即可断点续跑，预期 2-4 轮跑通。禁止清空 cache 重来。
+
+on:
+  workflow_dispatch:
+    inputs:
+      lo_repo:
+        description: 'LibreOffice core 仓库'
+        default: 'https://git.libreoffice.org/core'
+        # 备选镜像: https://github.com/LibreOffice/core.git （仅主干分支）
+      lo_branch:
+        description: '分支（ZetaOffice CDN 二进制对应 distro/allotropia/zeta-24-2）'
+        default: 'distro/allotropia/zeta-24-2'
+      emsdk_version:
+        description: 'emsdk 版本（CDN 构建用 allotropia fork fixed-3.1.65）'
+        default: '3.1.65'
+      skip_smoke:
+        description: '跳过冒烟测试（仅调试用）'
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+env:
+  CCACHE_BASEDIR: ${{ github.workspace }}
+  CCACHE_DIR: ${{ github.workspace }}/.ccache
+  CCACHE_COMPRESS: '1'
+  CCACHE_MAXSIZE: 5G
+  NODE_OPTIONS: '--max-old-space-size=8192'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 清理磁盘（预装软件可释放 30GB+）
+        uses: jlumbroso/free-disk-space@v1.3.1
+        with:
+          tool-cache: false
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: true
+          docker-images: true
+          swap-storage: true
+
+      - name: 安装构建依赖
+        run: |
+          sudo add-apt-repository universe multiverse
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            zip nasm python3 python3-dev python3-pip autoconf gperf xsltproc \
+            libxml2-utils bison flex pkg-config cmake locales ccache brotli \
+            libnss3 libnspr4 libdbus-1-3 libatk1.0-0 libatk-bridge2.0-0 \
+            libcups2 libdrm2 libatspi2.0-0 libxcomposite1 libxdamage1 \
+            libxfixes3 libxrandr2 libgbm1 libxkbcommon0 libasound2
+          pip3 install fonttools python-docx
+          npm i -g binaryen
+
+      - name: 浅克隆 LibreOffice
+        run: git clone --depth 1 -b '${{ inputs.lo_branch }}' '${{ inputs.lo_repo }}' libreoffice-core
+
+      - name: 缓存周 key
+        run: echo "CACHE_WEEK=$(date +%Y-%V)" >> "$GITHUB_ENV"
+
+      - name: 恢复 emsdk 缓存
+        id: emsdk-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: emsdk
+          key: emsdk-${{ inputs.emsdk_version }}
+
+      - name: 安装 emsdk（缓存未命中时）
+        if: steps.emsdk-cache.outputs.cache-hit != 'true'
+        run: |
+          git clone --depth 1 https://github.com/emscripten-core/emsdk.git
+          ./emsdk/emsdk install '${{ inputs.emsdk_version }}'
+          ./emsdk/emsdk activate '${{ inputs.emsdk_version }}'
+          # 若构建报错指向 emscripten 内部（版本漂移是最大风险），改用 CDN 同款 fork：
+          #   git clone --depth 1 -b fixed-3.1.65 https://github.com/allotropia/emscripten.git
+          #   参考 chase/lok-wasm 仓库 emsdk-patches/ 的做法替换 emsdk 的上游组件。
+
+      - name: 保存 emsdk 缓存
+        if: always() && steps.emsdk-cache.outputs.cache-hit != 'true'
+        continue-on-error: true
+        uses: actions/cache/save@v4
+        with:
+          path: emsdk
+          key: emsdk-${{ inputs.emsdk_version }}
+
+      - name: 恢复外部源码包缓存
+        id: tarballs-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: libreoffice-core/external/tarballs
+          key: external-${{ hashFiles('libreoffice-core/download.lst') }}
+          restore-keys: external-
+
+      - name: 恢复 ccache
+        id: ccache-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: .ccache
+          key: ccache-${{ env.CACHE_WEEK }}
+          restore-keys: ccache-
+
+      - name: 写入 autogen.input（无头 Writer-only）
+        run: |
+          cat > libreoffice-core/autogen.input <<'EOF'
+          --disable-debug
+          --enable-sal-log
+          --disable-crashdump
+          --host=wasm32-local-emscripten
+          --disable-gui
+          --disable-scripting
+          --with-wasm-module=writer
+          --with-package-format=emscripten
+          --with-build-platform-configure-options=--enable-ccache
+          --enable-ccache
+          EOF
+          cat libreoffice-core/autogen.input
+
+      - name: 构建（320 分钟软超时，确保缓存必定落盘）
+        run: |
+          source emsdk/emsdk_env.sh
+          cd libreoffice-core
+          ./autogen.sh 2>&1 | tee ../autogen.log
+          set +e
+          timeout 320m make -j"$(nproc)" 2>&1 | tee ../build.log
+          rc=${PIPESTATUS[0]}
+          set -e
+          if [ "$rc" = "124" ]; then
+            echo "软超时：进度已存入 ccache，重新运行本 workflow 即可续跑"
+            echo "BUILD_INCOMPLETE=1" >> "$GITHUB_ENV"
+          elif [ "$rc" != "0" ]; then
+            exit "$rc"
+          fi
+
+      - name: 保存 ccache（软超时后这一步是续命的关键）
+        if: always() && steps.ccache-cache.outputs.cache-hit != 'true'
+        continue-on-error: true
+        uses: actions/cache/save@v4
+        with:
+          path: .ccache
+          key: ccache-${{ env.CACHE_WEEK }}
+
+      - name: 保存外部源码包缓存
+        if: always() && steps.tarballs-cache.outputs.cache-hit != 'true'
+        continue-on-error: true
+        uses: actions/cache/save@v4
+        with:
+          path: libreoffice-core/external/tarballs
+          key: external-${{ hashFiles('libreoffice-core/download.lst') }}
+
+      - name: 收集产物并执行剪枝流水线
+        if: env.BUILD_INCOMPLETE != '1'
+        run: |
+          STAGE=libreoffice-core/workdir/installation/LibreOffice/emscripten
+          mkdir -p lowa
+          cp "$STAGE"/soffice.js "$STAGE"/soffice.wasm "$STAGE"/soffice.data \
+             "$STAGE"/soffice.data.js.metadata lowa/
+          bash scripts/repack_pipeline.sh lowa dist
+
+      - name: 冒烟测试（fixture.docx 实转 PDF）
+        if: ${{ env.BUILD_INCOMPLETE != '1' && !inputs.skip_smoke }}
+        run: |
+          python3 scripts/make_fixture.py fixture.docx
+          mkdir -p stage/assets/vendor
+          cp scripts/smoke_page.html stage/index.html
+          cp scripts/smoke_office_thread.js stage/
+          cp fixture.docx stage/
+          cp -r lowa stage/lowa
+          npm init -y >/dev/null
+          npm i --no-fund --no-audit zetajs puppeteer
+          # zetaHelper.js 在 zetajs 包内的 source/ 目录；若包结构变动导致 404，
+          # 在 node_modules/zetajs 里确认真实路径后修正下一行
+          cp -r node_modules/zetajs/source stage/assets/vendor/zetajs
+          node scripts/serve_coop.js stage 8080 &
+          SERVER_PID=$!
+          sleep 1
+          node scripts/smoke_test.mjs http://127.0.0.1:8080/
+          kill $SERVER_PID
+
+      - name: 失败时上传日志与冒烟现场
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-debug
+          path: |
+            autogen.log
+            build.log
+            stage/
+          retention-days: 7
+
+      - name: 发布 Release
+        if: env.BUILD_INCOMPLETE != '1'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: src-${{ github.run_number }}
+          name: src-${{ github.run_number }}
+          files: dist/*

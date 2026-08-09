@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<!-- SPDX-License-Identifier: MIT -->
+<!-- 冒烟测试页：CI 里由 puppeteer 打开，自动完成一次 docx->PDF 转换，
+     结果写到 window.__SMOKE_RESULT 供断言。改编自 zetajs convertpdf 示例。 -->
+<html>
+  <head>
+    <meta charset="utf-8">
+  </head>
+  <body>
+    <canvas id="qtcanvas" style="display: none"></canvas>
+    <pre id="log">loading...</pre>
+    <script type="module">
+      import { ZetaHelperMain } from './assets/vendor/zetajs/zetaHelper.js';
+
+      const log = (s) => {
+        document.getElementById('log').textContent += '\n' + s;
+        console.log('[smoke] ' + s);
+      };
+
+      try {
+        log('crossOriginIsolated = ' + self.crossOriginIsolated);
+        // soffice.{js,wasm,data,data.js.metadata} 位于 ./lowa/
+        const zHM = new ZetaHelperMain('smoke_office_thread.js',
+                                       {threadJsType: 'module', wasmPkg: 'url:./lowa/'});
+        zHM.start(() => {
+          zHM.thrPort.onmessage = (e) => {
+            if (e.data.cmd === 'start') {
+              log('LOWA 初始化完成，开始转换');
+              fetch('./fixture.docx')
+                .then(r => r.arrayBuffer())
+                .then(data => {
+                  FS.writeFile('/tmp/fixture.docx', new Uint8Array(data));
+                  zHM.thrPort.postMessage({cmd: 'convert',
+                                           from: '/tmp/fixture.docx',
+                                           to: '/tmp/output.pdf'});
+                });
+            } else if (e.data.cmd === 'converted') {
+              const data = FS.readFile(e.data.to);
+              const magic = String.fromCharCode(...data.slice(0, 5));
+              window.__SMOKE_RESULT = {ok: magic === '%PDF-',
+                                       size: data.length, magic};
+              log('转换完成: ' + data.length + ' bytes, magic=' + magic);
+            } else if (e.data.cmd === 'error') {
+              window.__SMOKE_RESULT = {ok: false, error: e.data.message};
+              log('转换出错: ' + e.data.message);
+            }
+          };
+        });
+      } catch (err) {
+        window.__SMOKE_RESULT = {ok: false, error: String(err)};
+        log('初始化异常: ' + err);
+      }
+    </script>
+  </body>
+</html>
