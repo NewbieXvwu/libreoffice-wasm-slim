@@ -18,9 +18,14 @@ echo "== [2/5] 资源剪枝 =="
 bash "$SCRIPT_DIR/prune_tree.sh" "$WORK/tree"
 
 echo "== [3/5] 注入 GB2312 子集化中文字体 =="
-if [ -d "$WORK/tree/share/fonts/truetype" ]; then
+FONT_DIR="$WORK/tree/share/fonts/truetype"
+if [ ! -d "$FONT_DIR" ] && [ -d "$WORK/tree/instdir/share/fonts/truetype" ]; then
+  echo "字体目录适配 instdir/ 布局"
+  FONT_DIR="$WORK/tree/instdir/share/fonts/truetype"
+fi
+if [ -d "$FONT_DIR" ]; then
   bash "$SCRIPT_DIR/subset_cjk_font.sh" \
-    "$WORK/tree/share/fonts/truetype/NotoSerifSC-Subset.otf"
+    "$FONT_DIR/NotoSerifSC-Subset.otf"
 else
   echo "警告: 字体目录不存在，跳过注入。目录结构与预期不符，请人工核对后再发布" >&2
 fi
@@ -30,10 +35,12 @@ python3 "$SCRIPT_DIR/pack_emscripten_data.py" \
   "$WORK/tree" "$SRC/soffice.data" "$SRC/soffice.data.js.metadata"
 
 echo "== [5/5] wasm-opt 与 brotli =="
+echo "优化前 wasm 体积: $(du -h "$SRC/soffice.wasm" | cut -f1)"
 if command -v wasm-opt >/dev/null 2>&1; then
   if wasm-opt -Oz "$SRC/soffice.wasm" -o "$WORK/soffice.opt.wasm"; then
     mv "$WORK/soffice.opt.wasm" "$SRC/soffice.wasm"
     echo "wasm-opt -Oz 完成"
+    echo "优化后 wasm 体积: $(du -h "$SRC/soffice.wasm" | cut -f1)"
   else
     echo "警告: wasm-opt 失败，保留原始 wasm（只影响体积，不影响功能）" >&2
   fi

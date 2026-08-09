@@ -9,11 +9,20 @@ set -euo pipefail
 ROOT="${1:?usage: prune_tree.sh <dir>}"
 deleted_bytes=0
 
+# 适配解包树的顶层布局：官方 file_packager 对 --preload 的相对路径参数生成的
+# metadata filename 形如 /instdir/share/...（解包树顶层是 instdir/）；
+# 也兼容顶层直接就是 share/ 的包（如部分 CDN 产物）。统一重定位到 share 所在层。
+if [ -d "$ROOT/instdir" ] && [ ! -d "$ROOT/share" ]; then
+  echo "检测到顶层 instdir/ 布局，剪枝根重定位到 instdir/"
+  ROOT="$ROOT/instdir"
+fi
+
 purge() {  # purge <路径>：删除并累计体积
   local p="$1"
   if [ -e "$p" ]; then
+    # du -sk 兼容 GNU/macOS，再换算成字节
     local sz
-    sz=$(du -sb "$p" | cut -f1)
+    sz=$(( $(du -sk "$p" | cut -f1) * 1024 ))
     rm -rf "$p"
     deleted_bytes=$((deleted_bytes + sz))
     echo "  - ${p#"$ROOT"/} ($(numfmt --to=iec "$sz"))"
