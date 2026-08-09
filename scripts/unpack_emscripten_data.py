@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 """解包 Emscripten file_packager 生成的 .data 包（无需 emsdk）。
 
-原理：soffice.data.js.metadata 是一个 JSON，内含每个文件在 .data blob 中的
-字节区间 [{filename, start, end, crunched, audio}]，按区间切出来就是完整目录树。
-解包时把 package_uuid 保存到 <输出目录>/.package_uuid —— 重打包时必须沿用，
-因为 soffice.data.js 加载器会校验 UUID 是否与其内置值一致。
+原理：soffice.data.js.metadata 是 emscripten file_packager（--separate-metadata）
+输出的 JSON，内含每个文件在 .data blob 中的字节区间 [{filename, start, end,
+audio}]，按字节切出来就是原始文件树。注意：package_uuid 只在打包时带
+--use-preload-cache 参数才写入 metadata（LibreOffice 源码构建不带该参数，
+无 UUID 属正常）；解包时把 package_uuid（若有）保存到 <输出目录>/.package_uuid，
+重打包时必须沿用。
 
 用法: unpack_emscripten_data.py <soffice.data> <soffice.data.js.metadata> <输出目录>
 """
@@ -34,9 +36,10 @@ def main():
             fh.write(blob[f["start"]:f["end"]])
 
     with open(os.path.join(outdir, ".package_uuid"), "w", encoding="utf-8") as fh:
-        fh.write(meta["package_uuid"])
+        fh.write(meta.get("package_uuid", ""))
+    uuid = meta.get("package_uuid", "（无，官方 file_packager 仅在 --use-preload-cache 模式写入 UUID）")
     print(f"解包完成: {len(meta['files'])} 个文件 -> {outdir} "
-          f"(uuid={meta['package_uuid']})")
+          f"(uuid={uuid})")
 
 
 if __name__ == "__main__":
