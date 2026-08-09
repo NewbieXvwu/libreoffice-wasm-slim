@@ -37,7 +37,11 @@ python3 "$SCRIPT_DIR/pack_emscripten_data.py" \
 echo "== [5/5] wasm-opt 与 brotli =="
 echo "优化前 wasm 体积: $(du -h "$SRC/soffice.wasm" | cut -f1)"
 if command -v wasm-opt >/dev/null 2>&1; then
-  if wasm-opt -Oz "$SRC/soffice.wasm" -o "$WORK/soffice.opt.wasm"; then
+  # LO wasm 使用 atomics(pthreads)/exception-handling/bulk-memory/SIMD，
+  # binaryen 新版默认按 MVP 校验，不显式开启会 validator 报错刷屏并失败
+  if wasm-opt -Oz --enable-threads --enable-exception-handling \
+              --enable-bulk-memory --enable-simd \
+              "$SRC/soffice.wasm" -o "$WORK/soffice.opt.wasm"; then
     mv "$WORK/soffice.opt.wasm" "$SRC/soffice.wasm"
     echo "wasm-opt -Oz 完成"
     echo "优化后 wasm 体积: $(du -h "$SRC/soffice.wasm" | cut -f1)"

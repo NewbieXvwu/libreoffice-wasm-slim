@@ -122,6 +122,10 @@ jobs:
           --with-package-format=emscripten
           --with-build-platform-configure-options=--enable-ccache
           --enable-ccache
+          # 官方为 wasm 定制的组件裁剪（strip dbaccess/epub/extra/guesslang/
+          # splash/recoveryui 等非 Writer 转换必需组件，writer 模块保留）
+          --enable-wasm-strip
+          --disable-database-connectivity
           EOF
           cat libreoffice-core/autogen.input
 
