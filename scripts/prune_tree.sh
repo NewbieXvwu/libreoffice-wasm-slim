@@ -72,13 +72,18 @@ purge "$ROOT/share/fingerprint"
 
 # ---- 激进区（冒烟已连续绿灯，可以放开：无头转换不画 UI，图标/工具栏/菜单
 # ---- 配置文件不影响文档加载与导出） -------------------------------------
-# 图标主题 zip（images_{theme}.zip，逐个删除以计入体积）
+# 图标主题 zip（images_{theme}.zip，逐个删除以计入体积；先量后删，避免
+# 文件已消失导致 du 空值炸算术）
 if [ -d "$ROOT/share/config" ]; then
-  find "$ROOT/share/config" -maxdepth 1 -name 'images_*.zip' -print -delete | while read -r f; do
-    sz=$(( $(du -sk "$f" 2>/dev/null | cut -f1) * 1024 ))
-    deleted_bytes=$((deleted_bytes + sz))
+  while IFS= read -r f; do
+    [ -f "$f" ] || continue
+    sz=$(du -sk "$f" 2>/dev/null | cut -f1)
+    rm -f "$f"
+    if [ -n "$sz" ]; then
+      deleted_bytes=$((deleted_bytes + sz * 1024))
+    fi
     echo "  - ${f#"$ROOT"/}"
-  done
+  done < <(find "$ROOT/share/config" -maxdepth 1 -name 'images_*.zip')
 fi
 purge "$ROOT/share/config/soffice.cfg/modules/swriter/toolbar"
 purge "$ROOT/share/config/soffice.cfg/modules/swriter/menubar"
