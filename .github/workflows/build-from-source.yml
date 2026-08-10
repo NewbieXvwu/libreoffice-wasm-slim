@@ -136,11 +136,9 @@ jobs:
           --disable-opencl
           --disable-introspection
           --disable-scripting
-          # openssl/xmlsec 数字签名链路（wasm 内几十个库；无头转换不需要
-          # 签名，冒烟日志本就显示 DocumentDigitalSignatures 服务缺失仅 warn）
-          --disable-openssl
-          --disable-dconf
-          --disable-avahi
+          # 注意：--disable-openssl 不可用——触发上游 configure bug
+          # （xmlsecurity/UIConfig_xmlsec.mk 未注册 Repository.mk，链接 Error 2），
+          # 无上游 commit 可 backport，勿再开启。xmlsec 保留 = 体积 0 成本差异。
           EOF
           cat libreoffice-core/autogen.input
 
