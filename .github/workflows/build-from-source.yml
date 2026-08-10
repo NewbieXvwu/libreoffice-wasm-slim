@@ -136,6 +136,11 @@ jobs:
           --disable-opencl
           --disable-introspection
           --disable-scripting
+          # openssl/xmlsec 数字签名链路（wasm 内几十个库；无头转换不需要
+          # 签名，冒烟日志本就显示 DocumentDigitalSignatures 服务缺失仅 warn）
+          --disable-openssl
+          --disable-dconf
+          --disable-avahi
           EOF
           cat libreoffice-core/autogen.input
 

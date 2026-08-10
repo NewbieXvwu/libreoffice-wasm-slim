@@ -99,6 +99,14 @@ purge "$ROOT/share/filter"
 purge "$ROOT/share/liblangtag"
 # LO 官方 android 示例文档（.odt/.ods 样板，与无头转换无关）
 purge "$ROOT/android"
+# 非 Writer 模块的配置注册表（writer-only 构建不加载这些模块的服务；
+# 本地实测删除后 fixture.docx->PDF 转换不受影响）
+purge "$ROOT/share/registry/calc.xcd"
+purge "$ROOT/share/registry/draw.xcd"
+purge "$ROOT/share/registry/impress.xcd"
+purge "$ROOT/share/registry/math.xcd"
+# XSLT 过滤框架注册（docx 导入走原生 writerfilter，与 XSLT 无关）
+purge "$ROOT/share/registry/xsltfilter.xcd"
 # -----------------------------------------------------------------------------
 
 echo "剪枝合计释放: $(numfmt --to=iec $deleted_bytes)"
