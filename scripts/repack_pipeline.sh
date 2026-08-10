@@ -38,15 +38,19 @@ echo "== [5/5] wasm-opt 与 brotli =="
 echo "优化前 wasm 体积: $(du -h "$SRC/soffice.wasm" | cut -f1)"
 if command -v wasm-opt >/dev/null 2>&1; then
   # LO wasm 使用 atomics(pthreads)/exception-handling/bulk-memory/SIMD，
-  # binaryen 新版默认按 MVP 校验，不显式开启会 validator 报错刷屏并失败
+  # binaryen 新版默认按 MVP 校验，不显式开启会 validator 报错刷屏并失败。
+  # stderr 重定向到文件：报错行会重复整段 wasm 文本（GB 级），只在失败时打印头部。
+  OPT_ERR="$WORK/wasm-opt.err"
   if wasm-opt -Oz --enable-threads --enable-exception-handling \
               --enable-bulk-memory --enable-simd \
-              "$SRC/soffice.wasm" -o "$WORK/soffice.opt.wasm"; then
+              "$SRC/soffice.wasm" -o "$WORK/soffice.opt.wasm" \
+              > /dev/null 2> "$OPT_ERR"; then
     mv "$WORK/soffice.opt.wasm" "$SRC/soffice.wasm"
     echo "wasm-opt -Oz 完成"
     echo "优化后 wasm 体积: $(du -h "$SRC/soffice.wasm" | cut -f1)"
   else
     echo "警告: wasm-opt 失败，保留原始 wasm（只影响体积，不影响功能）" >&2
+    head -c 1200 "$OPT_ERR" >&2 || true
   fi
 else
   echo "警告: wasm-opt 不可用，跳过" >&2
@@ -55,8 +59,9 @@ fi
 mkdir -p "$DIST"
 cp "$SRC/soffice.js" "$SRC/soffice.wasm" "$SRC/soffice.data" \
    "$SRC/soffice.data.js.metadata" "$DIST/"
-brotli -9 -f "$DIST/soffice.wasm"
-brotli -9 -f "$DIST/soffice.data"
+# brotli -q 11（0-11，-9 默认）：本地实测对 wasm 额外省 ~13%
+brotli -q 11 -f "$DIST/soffice.wasm"
+brotli -q 11 -f "$DIST/soffice.data"
 
 echo "== 产物 =="
 ls -lh "$DIST"

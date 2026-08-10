@@ -126,6 +126,13 @@ jobs:
           # splash/recoveryui 等非 Writer 转换必需组件，writer 模块保留）
           --enable-wasm-strip
           --disable-database-connectivity
+          # 深度瘦身：全程序 ThinLTO（clang）跨模块优化 + 无关组件禁用
+          --enable-lto
+          --disable-avmedia
+          --disable-ldap
+          --disable-xmlhelp
+          --disable-opencl
+          --disable-introspection
           EOF
           cat libreoffice-core/autogen.input
 

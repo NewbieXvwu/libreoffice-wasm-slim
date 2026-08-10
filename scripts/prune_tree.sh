@@ -70,11 +70,18 @@ purge "$ROOT/share/autocorr"     # 自动更正词表（无头转换不触发）
 purge "$ROOT/share/wordbook"
 purge "$ROOT/share/fingerprint"
 
-# ---- 激进区（默认注释掉：删 UI 配置，GUI 构建可省 ~22MB，但可能误伤 ----------
-# 无头转换实际读取的配置项。只有冒烟测试绿了才允许逐个放开。
-# purge "$ROOT/share/config/images.zip"
-# purge "$ROOT/share/config/soffice.cfg/modules/swriter/toolbar"
-# purge "$ROOT/share/config/soffice.cfg/modules/swriter/menubar"
+# ---- 激进区（冒烟已连续绿灯，可以放开：无头转换不画 UI，图标/工具栏/菜单
+# ---- 配置文件不影响文档加载与导出） -------------------------------------
+# 图标主题 zip（images_{theme}.zip，逐个删除以计入体积）
+if [ -d "$ROOT/share/config" ]; then
+  find "$ROOT/share/config" -maxdepth 1 -name 'images_*.zip' -print -delete | while read -r f; do
+    sz=$(( $(du -sk "$f" 2>/dev/null | cut -f1) * 1024 ))
+    deleted_bytes=$((deleted_bytes + sz))
+    echo "  - ${f#"$ROOT"/}"
+  done
+fi
+purge "$ROOT/share/config/soffice.cfg/modules/swriter/toolbar"
+purge "$ROOT/share/config/soffice.cfg/modules/swriter/menubar"
 # -----------------------------------------------------------------------------
 
 echo "剪枝合计释放: $(numfmt --to=iec $deleted_bytes)"
