@@ -126,13 +126,16 @@ jobs:
           # splash/recoveryui 等非 Writer 转换必需组件，writer 模块保留）
           --enable-wasm-strip
           --disable-database-connectivity
-          # 深度瘦身：全程序 ThinLTO（clang）跨模块优化 + 无关组件禁用
-          --enable-lto
+          # 本地实测：--enable-lto 优化产物启动即崩（component context
+          # DeploymentException，wasm-ld 对 localedata 等 rdb 注册入口的
+          # 函数签名冲突在 LTO 汇总后暴露），不可用，勿再开启
+          # 无关组件禁用（无头转换不涉及）
           --disable-avmedia
           --disable-ldap
           --disable-xmlhelp
           --disable-opencl
           --disable-introspection
+          --disable-scripting
           EOF
           cat libreoffice-core/autogen.input
 

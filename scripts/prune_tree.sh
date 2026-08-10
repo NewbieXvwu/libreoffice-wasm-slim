@@ -87,6 +87,18 @@ if [ -d "$ROOT/share/config" ]; then
 fi
 purge "$ROOT/share/config/soffice.cfg/modules/swriter/toolbar"
 purge "$ROOT/share/config/soffice.cfg/modules/swriter/menubar"
+# 对话框/UI 描述（*.ui 与 notebookbar）：本地逐组二分实测 —— 除 svt/ui 外
+# 全部可删（svt/ui 是无头工厂加载的必要配置，删了 loadComponentFromURL
+# 返回 null）；含 modules/swriter/ui（8.3MB，PDF 转换不读对话框）
+find "$ROOT/share/config/soffice.cfg" -type d -name ui \
+  -not -path "*/svt/ui" -print -exec rm -rf {} + 2>/dev/null \
+  | while read -r f; do echo "  - ${f#"$ROOT"/}"; done
+# 厂商 docx 导入的名称映射表（oox-drawingml 等，本地实测 fixture 转换不受影响）
+purge "$ROOT/share/filter"
+# 语言标签数据（langtag 二进制表，本地实测不含时 en/zh 转换正常）
+purge "$ROOT/share/liblangtag"
+# LO 官方 android 示例文档（.odt/.ods 样板，与无头转换无关）
+purge "$ROOT/android"
 # -----------------------------------------------------------------------------
 
 echo "剪枝合计释放: $(numfmt --to=iec $deleted_bytes)"
