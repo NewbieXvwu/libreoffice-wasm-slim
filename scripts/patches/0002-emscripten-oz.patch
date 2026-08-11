@@ -1,0 +1,13 @@
+diff --git a/solenv/gbuild/platform/EMSCRIPTEN_INTEL_GCC.mk b/solenv/gbuild/platform/EMSCRIPTEN_INTEL_GCC.mk
+index 613cb0b3b..9cf760b05 100644
+--- a/solenv/gbuild/platform/EMSCRIPTEN_INTEL_GCC.mk
++++ b/solenv/gbuild/platform/EMSCRIPTEN_INTEL_GCC.mk
+@@ -73,7 +73,7 @@ ifeq ($(HAVE_EXTERNAL_DWARF),TRUE)
+ gb_DEBUGINFO_FLAGS += -gsplit-dwarf -gpubnames
+ endif
+ 
+-gb_COMPILEROPTFLAGS := -O3
++gb_COMPILEROPTFLAGS := -Oz
+ 
+ # We need at least code elimination, otherwise linking OOMs even with 64GB.
+ # So we "fake" -Og support to mean -O1 for Emscripten and always enable it for debug in configure.

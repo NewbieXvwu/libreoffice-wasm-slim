@@ -65,6 +65,15 @@ jobs:
       - name: 浅克隆 LibreOffice
         run: git clone --depth 1 -b '${{ inputs.lo_branch }}' '${{ inputs.lo_repo }}' libreoffice-core
 
+      - name: 应用构建 patch（scripts/patches/*.patch）
+        run: |
+          cd libreoffice-core
+          for p in ../scripts/patches/*.patch; do
+            echo "== apply $p =="
+            git apply --verbose "$p" || exit 1
+          done
+          git diff --stat | tail -5
+
       - name: 缓存周 key
         run: echo "CACHE_WEEK=$(date +%Y-%V)" >> "$GITHUB_ENV"
 
@@ -136,9 +145,11 @@ jobs:
           --disable-opencl
           --disable-introspection
           --disable-scripting
-          # 注意：--disable-openssl 不可用——触发上游 configure bug
-          # （xmlsecurity/UIConfig_xmlsec.mk 未注册 Repository.mk，链接 Error 2），
-          # 无上游 commit 可 backport，勿再开启。xmlsec 保留 = 体积 0 成本差异。
+          # openssl/xmlsec 数字签名链路（wasm 内无 NSS，依赖 openssl 的库
+          # 体积不小；无头转换不需要签名服务）。xmlsecurity 的 UIConfig
+          # 未随 --disable-openssl 排除属于上游 bug，已由
+          # scripts/patches/0001-xmlsec-uiconfig-optional.patch 修复。
+          --disable-openssl
           EOF
           cat libreoffice-core/autogen.input
 

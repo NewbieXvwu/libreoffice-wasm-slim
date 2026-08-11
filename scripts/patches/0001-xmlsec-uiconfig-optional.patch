@@ -1,0 +1,23 @@
+diff --git a/xmlsecurity/UIConfig_xmlsec.mk b/xmlsecurity/UIConfig_xmlsec.mk
+index 06482e2a2..7fc504d6f 100644
+--- a/xmlsecurity/UIConfig_xmlsec.mk
++++ b/xmlsecurity/UIConfig_xmlsec.mk
+@@ -7,6 +7,12 @@
+ # file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ #
+ 
++# Registered in Repository.mk only when NSS/OPENSSL is enabled; guard the
++# whole file so that builds with both disabled (e.g. --disable-openssl on
++# wasm, where NSS is unavailable) do not trip
++# "UIConfig xmlsec must be registered in Repository.mk".
++ifneq ($(ENABLE_NSS)$(ENABLE_OPENSSL),)
++
+ $(eval $(call gb_UIConfig_UIConfig,xmlsec))
+ 
+ $(eval $(call gb_UIConfig_add_uifiles,xmlsec,\
+@@ -22,3 +28,5 @@ $(eval $(call gb_UIConfig_add_uifiles,xmlsec,\
+ ))
+ 
+ # vim: set noet sw=4 ts=4:
++
++endif
