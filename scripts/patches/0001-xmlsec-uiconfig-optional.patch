@@ -19,12 +19,15 @@ index 90b80207c..10febc0e3 100644
 +
 +endif
 diff --git a/xmlsecurity/Module_xmlsecurity.mk b/xmlsecurity/Module_xmlsecurity.mk
-index f5b442683..9bba5003d 100644
+index f5b442683..c05b02648 100644
 --- a/xmlsecurity/Module_xmlsecurity.mk
 +++ b/xmlsecurity/Module_xmlsecurity.mk
-@@ -12,7 +12,7 @@ $(eval $(call gb_Module_Module,xmlsecurity))
+@@ -10,9 +10,9 @@
+ $(eval $(call gb_Module_Module,xmlsecurity))
+ 
  $(eval $(call gb_Module_add_targets,xmlsecurity,\
- 	Library_xmlsecurity \
+-	Library_xmlsecurity \
++	$(if $(ENABLE_NSS)$(ENABLE_OPENSSL),Library_xmlsecurity) \
  	$(if $(ENABLE_NSS)$(ENABLE_OPENSSL),Library_xsec_xmlsec) \
 -	UIConfig_xmlsec \
 +	$(if $(ENABLE_NSS)$(ENABLE_OPENSSL),UIConfig_xmlsec) \
