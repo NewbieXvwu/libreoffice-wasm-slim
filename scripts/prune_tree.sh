@@ -85,8 +85,19 @@ if [ -d "$ROOT/share/config" ]; then
     echo "  - ${f#"$ROOT"/}"
   done < <(find "$ROOT/share/config" -maxdepth 1 -name 'images_*.zip')
 fi
-purge "$ROOT/share/config/soffice.cfg/modules/swriter/toolbar"
-purge "$ROOT/share/config/soffice.cfg/modules/swriter/menubar"
+# 全部模块（swriter/sweb/swform/swreport/swxform/sglobal/schart）的
+# toolbar/menubar/statusbar：无头转换不渲染 UI，swriter/toolbar 已实测
+# 可删，兄弟模块同理（本地实测删后冒烟连续 PASS）。模块级 windowstate
+# 等小文件保留（swriter 状态文件，转换器会读写）。
+find "$ROOT/share/config/soffice.cfg/modules" -type d \( -name toolbar -o -name menubar -o -name statusbar \) -print0 |
+  while IFS= read -r -d '' d; do
+    sz=$(du -sk "$d" 2>/dev/null | cut -f1)
+    rm -rf "$d"
+    if [ -n "$sz" ]; then
+      deleted_bytes=$((deleted_bytes + sz * 1024))
+    fi
+    echo "  - ${d#"$ROOT"/}"
+  done
 # 对话框/UI 描述（*.ui 与 notebookbar）：本地逐组二分实测 —— 除 svt/ui 外
 # 全部可删（svt/ui 是无头工厂加载的必要配置，删了 loadComponentFromURL
 # 返回 null）；含 modules/swriter/ui（8.3MB，PDF 转换不读对话框）
