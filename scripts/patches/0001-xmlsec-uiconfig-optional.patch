@@ -1,5 +1,25 @@
+diff --git a/xmlsecurity/AllLangMoTarget_xsc.mk b/xmlsecurity/AllLangMoTarget_xsc.mk
+index 90b80207c..10febc0e3 100644
+--- a/xmlsecurity/AllLangMoTarget_xsc.mk
++++ b/xmlsecurity/AllLangMoTarget_xsc.mk
+@@ -6,8 +6,15 @@
+ # License, v. 2.0. If a copy of the MPL was not distributed with this
+ # file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ 
++# Only registered via Module_xmlsecurity.mk when NSS/OPENSSL is enabled;
++# guard the whole file so builds with both disabled do not trip
++# "AllLangMoTarget xsc must be registered in Repository.mk".
++ifneq ($(ENABLE_NSS)$(ENABLE_OPENSSL),)
++
+ $(eval $(call gb_AllLangMoTarget_AllLangMoTarget,xsc))
+ 
+ $(eval $(call gb_AllLangMoTarget_set_polocation,xsc,xmlsecurity))
+ 
+ # vim: set noet sw=4 ts=4:
++
++endif
 diff --git a/xmlsecurity/Module_xmlsecurity.mk b/xmlsecurity/Module_xmlsecurity.mk
-index f5b442683..fb4c49343 100644
+index f5b442683..9bba5003d 100644
 --- a/xmlsecurity/Module_xmlsecurity.mk
 +++ b/xmlsecurity/Module_xmlsecurity.mk
 @@ -12,7 +12,7 @@ $(eval $(call gb_Module_Module,xmlsecurity))
@@ -11,6 +31,15 @@ index f5b442683..fb4c49343 100644
  ))
  
  $(eval $(call gb_Library_use_custom_headers,xmlsecurity,\
+@@ -29,7 +29,7 @@ $(eval $(call gb_Module_add_subsequentcheck_targets,xmlsecurity,\
+ ))
+ 
+ $(eval $(call gb_Module_add_l10n_targets,xmlsecurity,\
+-	AllLangMoTarget_xsc \
++	$(if $(ENABLE_NSS)$(ENABLE_OPENSSL),AllLangMoTarget_xsc) \
+ ))
+ 
+ # failing
 diff --git a/xmlsecurity/UIConfig_xmlsec.mk b/xmlsecurity/UIConfig_xmlsec.mk
 index 06482e2a2..7fc504d6f 100644
 --- a/xmlsecurity/UIConfig_xmlsec.mk
