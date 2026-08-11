@@ -154,7 +154,11 @@ jobs:
           # wasm 下 NSS 不可用，--disable-openssl 后 configure 原来仍落到
           # 默认 TLS=NSS，令 comphelper/oox/svl/soffice 依赖不存在的 nss
           # 外部包；patch 让 TLS 明确落到 no。
+          # --disable-curl：TLS=no 时 curl 外部包 configure 无 TLS 后端
+          # 直接报错（第七层）；wasm 链接集本就不含 curl（sofficeapp 有
+          # EMSCRIPTEN filter，linguistic 按 ENABLE_CURL 条件），安全。
           --disable-openssl
+          --disable-curl
           EOF
           cat libreoffice-core/autogen.input
 
