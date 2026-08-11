@@ -20,6 +20,10 @@ on:
         description: '跳过冒烟测试（仅调试用）'
         type: boolean
         default: false
+      subset_fonts:
+        description: '拉丁字体子集化（缩小 soffice.data；置 false 可对照原始字体体积）'
+        type: boolean
+        default: true
 
 permissions:
   contents: write
@@ -145,10 +149,12 @@ jobs:
           --disable-opencl
           --disable-introspection
           --disable-scripting
-          # 注意：不要开 --disable-openssl/--disable-nss——xmlsecurity 之外
-          # comphelper/oox/svl/soffice 等还对 package nss 有硬依赖（第四层
-          # 上游 bug），连环条件化不划算；openssl/nss 在 wasm 链接集的体积
-          # 占比小，体积目标靠 -Oz 编译级与数据侧字体子集化达成。
+          # --disable-openssl：关掉 wasm 链接集里的 openssl（TLS）代码。
+          # 上游 bug 已由 scripts/patches/0003-configure-tls-no.patch 修复：
+          # wasm 下 NSS 不可用，--disable-openssl 后 configure 原来仍落到
+          # 默认 TLS=NSS，令 comphelper/oox/svl/soffice 依赖不存在的 nss
+          # 外部包；patch 让 TLS 明确落到 no。
+          --disable-openssl
           EOF
           cat libreoffice-core/autogen.input
 
@@ -192,6 +198,8 @@ jobs:
           cp "$STAGE"/soffice.js "$STAGE"/soffice.wasm "$STAGE"/soffice.data \
              "$STAGE"/soffice.data.js.metadata lowa/
           bash scripts/repack_pipeline.sh lowa dist
+        env:
+          SUBSET_LATIN_FONTS: ${{ github.event.inputs.subset_fonts != 'false' }}
 
       - name: 冒烟测试（fixture.docx 实转 PDF）
         if: ${{ env.BUILD_INCOMPLETE != '1' && !inputs.skip_smoke }}

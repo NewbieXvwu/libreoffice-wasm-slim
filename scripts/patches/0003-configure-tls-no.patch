@@ -1,0 +1,18 @@
+diff --git a/configure.ac b/configure.ac
+index 180fd73ee..4b0d8359b 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -10906,6 +10906,13 @@ if test "$enable_fuzzers" != "yes" -a "$enable_nss" = "yes"; then
+     ENABLE_NSS=TRUE
+ elif test $_os != iOS -a "$enable_openssl" != "no"; then
+     with_tls=openssl
++else
++    # --disable-openssl given (common on wasm, where NSS is unavailable):
++    # leave TLS off instead of falling through to the default TLS=NSS below,
++    # otherwise comphelper/oox/svl/soffice keep depending on the nss externals
++    # that are skipped when ENABLE_NSS is off
++    # ("depends on package nss which does not exist").
++    with_tls=no
+ fi
+ AC_SUBST(ENABLE_NSS)
+ 

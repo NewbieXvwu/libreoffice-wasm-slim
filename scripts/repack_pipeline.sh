@@ -26,8 +26,12 @@ fi
 if [ -d "$FONT_DIR" ]; then
   bash "$SCRIPT_DIR/subset_cjk_font.sh" \
     "$FONT_DIR/NotoSerifSC-Subset.otf"
-  echo "== [3.5/5] 拉丁字体子集化（Liberation/DejaVu/OpenSymbol 保留西文核心字形） =="
-  python3 "$SCRIPT_DIR/subset_latin_fonts.py" "$FONT_DIR" --keep-math
+  if [ "${SUBSET_LATIN_FONTS:-1}" != "1" ]; then
+    echo "== [3.5/5] 跳过拉丁字体子集化（SUBSET_LATIN_FONTS=${SUBSET_LATIN_FONTS:-1}） =="
+  else
+    echo "== [3.5/5] 拉丁字体子集化（Liberation/DejaVu/OpenSymbol 保留西文核心字形） =="
+    python3 "$SCRIPT_DIR/subset_latin_fonts.py" "$FONT_DIR" --keep-math
+  fi
 else
   echo "警告: 字体目录不存在，跳过注入。目录结构与预期不符，请人工核对后再发布" >&2
 fi

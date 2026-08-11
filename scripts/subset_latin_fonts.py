@@ -14,10 +14,13 @@ import subprocess
 import sys
 import tempfile
 
-# 拉丁核心：ASCII + Latin-1 + Latin Ext-A + 通用标点 + 货币 + 数字形式 + 空白
+# 拉丁核心：ASCII + Latin-1 + Latin Ext-A/B + IPA + 修饰符 + 音标扩展 +
+# 通用标点 + 货币 + 数字形式 + 字母数字符号 + 空白（覆盖西欧全语种与
+# 常见拼写变音，如 ĝ/œ/ə/ǅ 等）
 LATIN_CORE = (
-    "0000-007F,0080-00FF,0100-017F,2000-206F,20A0-20CF,2150-218F,"
-    "00A0,2010-2027,2030-205E,2070-209C,2100-214F"
+    "0000-007F,0080-00FF,0100-017F,0180-024F,0250-02AF,02B0-02FF,"
+    "1E00-1EFF,2000-206F,20A0-20CF,2150-218F,"
+    "00A0,2010-2027,2030-205E,2070-209C,2100-214F,2C60-2C7F"
 )
 # 数学符号（DejaVuMathTeXGyre / OpenSymbol 用）
 MATH = "2200-22FF,2190-21FF,0370-03FF,1D400-1D7FF,25A0-25FF,27C0-27EF,2B00-2BFF,FB00-FB06"
@@ -45,7 +48,13 @@ def main() -> int:
     ap.add_argument("fontdir")
     ap.add_argument("--keep-math", action="store_true",
                     help="保留数学/符号字形（DejaVuMathTeXGyre、opens__* 用）")
+    ap.add_argument("--skip", action="store_true",
+                    help="跳过子集化（仅打印将要处理的文件与当前状态）")
     args = ap.parse_args()
+
+    if args.skip:
+        print("跳过拉丁字体子集化（--skip 指定）")
+        return 0
 
     total_before = total_after = 0
     changes = []
