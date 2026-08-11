@@ -145,11 +145,10 @@ jobs:
           --disable-opencl
           --disable-introspection
           --disable-scripting
-          # openssl/xmlsec 数字签名链路（wasm 内无 NSS，依赖 openssl 的库
-          # 体积不小；无头转换不需要签名服务）。xmlsecurity 的 UIConfig
-          # 未随 --disable-openssl 排除属于上游 bug，已由
-          # scripts/patches/0001-xmlsec-uiconfig-optional.patch 修复。
-          --disable-openssl
+          # 注意：不要开 --disable-openssl/--disable-nss——xmlsecurity 之外
+          # comphelper/oox/svl/soffice 等还对 package nss 有硬依赖（第四层
+          # 上游 bug），连环条件化不划算；openssl/nss 在 wasm 链接集的体积
+          # 占比小，体积目标靠 -Oz 编译级与数据侧字体子集化达成。
           EOF
           cat libreoffice-core/autogen.input
 
