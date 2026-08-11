@@ -159,6 +159,7 @@ jobs:
           # EMSCRIPTEN filter，linguistic 按 ENABLE_CURL 条件），安全。
           --disable-openssl
           --disable-curl
+          --without-webdav
           EOF
           cat libreoffice-core/autogen.input
 
