@@ -1,0 +1,46 @@
+diff --git a/RepositoryExternal.mk b/RepositoryExternal.mk
+index 60499758d..f2aaa96bd 100644
+--- a/RepositoryExternal.mk
++++ b/RepositoryExternal.mk
+@@ -1023,9 +1023,15 @@ gb_ExternalProject__use_xmlsec:=
+ 
+ else # !SYSTEM_XMLSEC
+ 
++# xmlsec package (built from external/xmlsec) is skipped entirely when both
++# NSS and OpenSSL are disabled (--disable-openssl on wasm, where NSS is
++# unavailable); installing it would fail since the external project is not
++# registered then.
++ifneq ($(ENABLE_NSS)$(ENABLE_OPENSSL),)
+ $(eval $(call gb_Helper_register_packages_for_install,ooo,\
+ 	xmlsec \
+ ))
++endif
+ 
+ define gb_LinkTarget__use_xmlsec
+ 
+diff --git a/external/xmlsec/ExternalProject_xmlsec.mk b/external/xmlsec/ExternalProject_xmlsec.mk
+index 64b9a1862..328fea2e5 100644
+--- a/external/xmlsec/ExternalProject_xmlsec.mk
++++ b/external/xmlsec/ExternalProject_xmlsec.mk
+@@ -7,6 +7,12 @@
+ # file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ #
+ 
++# xmlsec1 cannot build without a crypto backend; with both NSS and OpenSSL
++# disabled (e.g. --disable-openssl on wasm, where NSS is unavailable) skip
++# the project entirely so its configure does not abort the build with
++# "At least one crypto library should exist for xmlsec1".
++ifneq ($(ENABLE_NSS)$(ENABLE_OPENSSL),)
++
+ $(eval $(call gb_ExternalProject_ExternalProject,xmlsec))
+ 
+ $(eval $(call gb_ExternalProject_use_externals,xmlsec,\
+@@ -18,6 +24,8 @@ $(eval $(call gb_ExternalProject_register_targets,xmlsec,\
+ 	build \
+ ))
+ 
++endif
++
+ # note: it's possible to use XSLT in XML signatures - that appears to be a
+ # really bad idea from a security point of view though, because it will run
+ # an XSLT script supplied as untrusted input, and XSLT implementations
