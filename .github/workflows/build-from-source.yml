@@ -24,6 +24,10 @@ on:
         description: '拉丁字体子集化（缩小 soffice.data；置 false 可对照原始字体体积）'
         type: boolean
         default: true
+      include_emoji:
+        description: '注入彩色 emoji 字体（Noto COLRv1 常用子集，data.br +~1.5MB；默认关闭）'
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -205,6 +209,7 @@ jobs:
           bash scripts/repack_pipeline.sh lowa dist
         env:
           SUBSET_LATIN_FONTS: ${{ github.event.inputs.subset_fonts == 'true' && '1' || '0' }}
+          INCLUDE_EMOJI: ${{ github.event.inputs.include_emoji == 'true' && '1' || '0' }}
 
       - name: 冒烟测试（fixture.docx 实转 PDF）
         if: ${{ env.BUILD_INCOMPLETE != '1' && !inputs.skip_smoke }}

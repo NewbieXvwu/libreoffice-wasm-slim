@@ -36,6 +36,17 @@ if [ -d "$FONT_DIR" ]; then
       python3 "$SCRIPT_DIR/subset_latin_fonts.py" "$FONT_DIR" --keep-math
       ;;
   esac
+  # 彩色 emoji（Noto COLRv1）默认关闭：INCLUDE_EMOJI=1 时注入常用 emoji 子集
+  case "${INCLUDE_EMOJI:-0}" in
+    1|true|True|TRUE|yes|YES)
+      echo "== [3.6/5] 注入彩色 emoji（Noto COLRv1 常用子集） =="
+      python3 "$SCRIPT_DIR/subset_emoji.py" "$FONT_DIR" || \
+        echo "警告: emoji 注入失败，继续（产物不含彩色 emoji）" >&2
+      ;;
+    *)
+      echo "== [3.6/5] 跳过彩色 emoji 注入（INCLUDE_EMOJI=${INCLUDE_EMOJI:-0}） =="
+      ;;
+  esac
 else
   echo "警告: 字体目录不存在，跳过注入。目录结构与预期不符，请人工核对后再发布" >&2
 fi

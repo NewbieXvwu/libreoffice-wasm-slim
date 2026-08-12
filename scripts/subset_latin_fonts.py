@@ -26,6 +26,9 @@ LATIN_CORE = (
 MATH = "2200-22FF,2190-21FF,0370-03FF,1D400-1D7FF,25A0-25FF,27C0-27EF,2B00-2BFF,FB00-FB06"
 # OpenSymbol 额外保留的杂项符号（制表符图形等）
 SYMBOL_EXTRA = "2300-23FF,2400-243F,2440-245F,2460-24FF,2500-257F,2580-259F"
+# 常用符号/装饰符（曾被误砍：杂项符号 2600-26FF 的 ☀☁⚠♥♠♪、装饰符 2700-27BF
+# 的 ✓✗✈✉❤，以及 DejaVu 自带的旧式黑白 emoji 1F300-1F6FF）
+DINGBATS = "2600-26FF,2700-27BF,1F300-1F6FF"
 
 def subset(path: str, unicode_ranges: str, out: str) -> int:
     cmd = [
@@ -66,9 +69,9 @@ def main() -> int:
             continue
         p = os.path.join(args.fontdir, name)
         before = os.path.getsize(p)
-        unicode_ranges = LATIN_CORE
+        unicode_ranges = f"{LATIN_CORE},{DINGBATS}"
         if args.keep_math and (name.startswith("DejaVuMath") or name.startswith("opens__")):
-            unicode_ranges = f"{LATIN_CORE},{MATH},{SYMBOL_EXTRA}"
+            unicode_ranges = f"{LATIN_CORE},{DINGBATS},{MATH},{SYMBOL_EXTRA}"
         with tempfile.NamedTemporaryFile(suffix=".ttf", delete=False) as f:
             tmp = f.name
         if subset(p, unicode_ranges, tmp) != 0:
