@@ -1,0 +1,21 @@
+diff --git a/external/xmlsec/Module_xmlsec.mk b/external/xmlsec/Module_xmlsec.mk
+index 55b0a4654..fb9d2865c 100644
+--- a/external/xmlsec/Module_xmlsec.mk
++++ b/external/xmlsec/Module_xmlsec.mk
+@@ -9,10 +9,16 @@
+ 
+ $(eval $(call gb_Module_Module,xmlsec))
+ 
++# Both NSS and OpenSSL disabled (--disable-openssl on wasm): the whole
++# external project is skipped (see ExternalProject_xmlsec.mk), so no targets
++# may be registered here or gbuild aborts with
++# "No target registered while reading ExternalProject_xmlsec.mk".
++ifneq ($(ENABLE_NSS)$(ENABLE_OPENSSL),)
+ $(eval $(call gb_Module_add_targets,xmlsec,\
+ 	UnpackedTarball_xmlsec \
+ 	ExternalPackage_xmlsec \
+ 	ExternalProject_xmlsec \
+ ))
++endif
+ 
+ # vim: set noet sw=4 ts=4:
