@@ -204,7 +204,7 @@ jobs:
              "$STAGE"/soffice.data.js.metadata lowa/
           bash scripts/repack_pipeline.sh lowa dist
         env:
-          SUBSET_LATIN_FONTS: ${{ github.event.inputs.subset_fonts != 'false' }}
+          SUBSET_LATIN_FONTS: ${{ github.event.inputs.subset_fonts == 'true' && '1' || '0' }}
 
       - name: 冒烟测试（fixture.docx 实转 PDF）
         if: ${{ env.BUILD_INCOMPLETE != '1' && !inputs.skip_smoke }}
